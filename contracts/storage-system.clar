@@ -101,11 +101,11 @@
     )
     (var-set file-count identifier)
     (ok identifier)
-    )
-    )
+  )
+)
 
-    (define-public (change-file-owner (identifier uint) (new-owner principal))
-    (let
+(define-public (change-file-owner (identifier uint) (new-owner principal))
+  (let
     (
       (file-data (unwrap! (map-get? cloud-files { identifier: identifier }) error-file-not-found))
     )
@@ -116,11 +116,11 @@
       (merge file-data { file-owner: new-owner })
     )
     (ok true)
-    )
-    )
+  )
+)
 
-    (define-public (modify-file (identifier uint) (new-name (string-ascii 64)) (new-size uint) (new-description (string-ascii 128)) (new-tags (list 10 (string-ascii 32))))
-    (let
+(define-public (modify-file (identifier uint) (new-name (string-ascii 64)) (new-size uint) (new-description (string-ascii 128)) (new-tags (list 10 (string-ascii 32))))
+  (let
     (
       (file-data (unwrap! (map-get? cloud-files { identifier: identifier }) error-file-not-found))
     )
@@ -139,11 +139,11 @@
       (merge file-data { file-name: new-name, file-size: new-size, description: new-description, tags: new-tags })
     )
     (ok true)
-    )
-    )
+  )
+)
 
-    (define-public (remove-file (identifier uint))
-    (let
+(define-public (remove-file (identifier uint))
+  (let
     (
       (file-data (unwrap! (map-get? cloud-files { identifier: identifier }) error-file-not-found))
     )
@@ -151,6 +151,49 @@
     (asserts! (is-eq (get file-owner file-data) tx-sender) error-not-authorized)
     (map-delete cloud-files { identifier: identifier })
     (ok true)
-    )
-    )
+  )
+)
 
+(define-public (set-access (identifier uint) (access bool) (recipient principal))
+  (let 
+    ((file-data (unwrap! (map-get? cloud-files { identifier: identifier }) error-file-not-found)))
+    (asserts! (is-eq (get file-owner file-data) tx-sender) error-not-authorized)
+    (asserts! (not (is-eq recipient (get file-owner file-data))) error-invalid-recipient)
+    (asserts! (does-file-exist identifier) error-file-not-found)
+    
+    (map-set access-permissions
+      { identifier: identifier, user: recipient }
+      { has-access: (if access true false) }  ;; Ensuring that only valid boolean is used
+    )
+    (ok true)
+  )
+)
+
+(define-public (revoke-access (identifier uint) (user principal))
+  (let
+    (
+      (file-data (unwrap! (map-get? cloud-files { identifier: identifier }) error-file-not-found))
+    )
+    (asserts! (does-file-exist identifier) error-file-not-found)
+    (asserts! (is-eq (get file-owner file-data) tx-sender) error-not-authorized)
+    (asserts! (not (is-eq user (get file-owner file-data))) error-invalid-recipient)
+    (map-delete access-permissions { identifier: identifier, user: user })
+    (ok true)
+  )
+)
+
+;; Read-only Functions
+(define-read-only (retrieve-file-details (identifier uint))
+  (match (map-get? cloud-files { identifier: identifier })
+    file-info (ok file-info)
+    error-file-not-found
+  )
+)
+
+(define-read-only (get-file-count)
+  (ok (var-get file-count))
+)
+
+(define-read-only (retrieve-file-count)
+  (ok (var-get file-count))
+)
