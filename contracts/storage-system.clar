@@ -94,3 +94,63 @@
         tags: tags
       }
     )
+
+    (map-insert access-permissions
+      { identifier: identifier, user: tx-sender }
+      { has-access: true }
+    )
+    (var-set file-count identifier)
+    (ok identifier)
+    )
+    )
+
+    (define-public (change-file-owner (identifier uint) (new-owner principal))
+    (let
+    (
+      (file-data (unwrap! (map-get? cloud-files { identifier: identifier }) error-file-not-found))
+    )
+    (asserts! (does-file-exist identifier) error-file-not-found)
+    (asserts! (is-eq (get file-owner file-data) tx-sender) error-not-authorized)
+    (map-set cloud-files
+      { identifier: identifier }
+      (merge file-data { file-owner: new-owner })
+    )
+    (ok true)
+    )
+    )
+
+    (define-public (modify-file (identifier uint) (new-name (string-ascii 64)) (new-size uint) (new-description (string-ascii 128)) (new-tags (list 10 (string-ascii 32))))
+    (let
+    (
+      (file-data (unwrap! (map-get? cloud-files { identifier: identifier }) error-file-not-found))
+    )
+    (asserts! (does-file-exist identifier) error-file-not-found)
+    (asserts! (is-eq (get file-owner file-data) tx-sender) error-not-authorized)
+    (asserts! (> (len new-name) u0) error-name-invalid)
+    (asserts! (< (len new-name) u65) error-name-invalid)
+    (asserts! (> new-size u0) error-size-invalid)
+    (asserts! (< new-size u1000000000) error-size-invalid)
+    (asserts! (> (len new-description) u0) error-name-invalid)
+    (asserts! (< (len new-description) u129) error-name-invalid)
+    (asserts! (validate-tags new-tags) error-name-invalid)
+
+    (map-set cloud-files
+      { identifier: identifier }
+      (merge file-data { file-name: new-name, file-size: new-size, description: new-description, tags: new-tags })
+    )
+    (ok true)
+    )
+    )
+
+    (define-public (remove-file (identifier uint))
+    (let
+    (
+      (file-data (unwrap! (map-get? cloud-files { identifier: identifier }) error-file-not-found))
+    )
+    (asserts! (does-file-exist identifier) error-file-not-found)
+    (asserts! (is-eq (get file-owner file-data) tx-sender) error-not-authorized)
+    (map-delete cloud-files { identifier: identifier })
+    (ok true)
+    )
+    )
+
